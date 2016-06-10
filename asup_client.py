@@ -22,7 +22,7 @@ class ASUP_Client():
         #print 'Posting %s to %s' % (self.email_fields, alerts_url)
         respose =  requests.post(alerts_url, json=self.email_fields, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')), headers=header)
         #jr = json.loads(respose.text())
-        print(respose.json())
+        #print(respose.json())
         self.alert_id = respose.json()['id']
         print self.alert_id
 
