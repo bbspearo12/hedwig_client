@@ -5,7 +5,7 @@ import time
 import subprocess
 from requests.auth import HTTPBasicAuth
 import sys
-
+import os
 
 class ASUP_Client():
     def __init__(self):
@@ -19,7 +19,7 @@ class ASUP_Client():
     def post_alerts(self):
         header = {'Accept': 'application/json', "Content-Type": "application/json"}
         alerts_url = self.appConf.get('hedwig', 'alerts.api.endpoint')
-        #print 'Posting %s to %s' % (self.email_fields, alerts_url)
+        print 'Posting %s to %s' % (self.email_fields, alerts_url)
         respose =  requests.post(alerts_url, json=self.email_fields, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')), headers=header)
         #jr = json.loads(respose.text())
         print(respose.json())
@@ -67,6 +67,7 @@ class ASUP_Client():
         else:
             print "Not a multi part email not sure how to process this"
         self.unzip_attachment(attachment_name)
+        self.email_fields['alerts'] = str(self.parse_alert_data(self.tempDir))
         self.post_alerts()
 
     def parse_email_body(self, email_body):
@@ -87,10 +88,24 @@ class ASUP_Client():
             email_body_data[field] = field_value
         return email_body_data
 
-    def parse_alert_data(self):
-        self.tempDir
+    def parse_alert_data(self, unzipped_files_dir):
+        files_to_parse = []
+        files_data = {}
+        # change unzipped_files_dir to self.tempDir TODO
+        for file in os.listdir(unzipped_files_dir):
+            #print 'Adding file %s' % file
+            if os.path.isfile(unzipped_files_dir+"/"+file):
+                files_to_parse.append(file)
+                fp = open(unzipped_files_dir + "/" + file, 'r')
+                files_data[file] = fp.read()
+                fp.close()
+        print 'Files to parse: ' + str(files_to_parse)
+        return files_data
+
 
 alerts = ASUP_Client()
 #alerts.unzip_attachment("/Users/cmutgi/ASUP/attachments/body.7z")
 alerts.parse_email(sys.argv[1])
+#alerts.parse_email('/tmp/email')
 #alerts.get_alerts()
+#alerts.parse_alert_data('/var/tmp/1465490322.99')
