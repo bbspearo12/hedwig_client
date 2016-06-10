@@ -19,7 +19,7 @@ class ASUP_Client():
     def post_alerts(self):
         header = {'Accept': 'application/json', "Content-Type": "application/json"}
         alerts_url = self.appConf.get('hedwig', 'alerts.api.endpoint')
-        print 'Posting %s to %s' % (self.email_fields, alerts_url)
+        #print 'Posting %s to %s' % (self.email_fields, alerts_url)
         respose =  requests.post(alerts_url, json=self.email_fields, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')), headers=header)
         #jr = json.loads(respose.text())
         print(respose.json())
