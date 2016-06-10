@@ -7,7 +7,7 @@ from requests.auth import HTTPBasicAuth
 import sys
 
 
-class Alerts():
+class ASUP_Client():
 
     def __init__(self):
         config = ConfigParser.RawConfigParser()
@@ -60,7 +60,7 @@ class Alerts():
 
                 elif ctype in ['application/octet-stream']:
                     # This the attachment
-                    attachment_name = "/tmp/" + self.alertName +payload.get_filename()
+                    attachment_name = "/tmp/" + self.alertName + payload.get_filename()
                     open(attachment_name, 'wb').write(payload.get_payload(decode=True))
                     print 'Finished writing attachment file at: %s' % attachment_name
                 else :
@@ -91,7 +91,7 @@ class Alerts():
     def parse_alert_data(self):
         self.tempDir
 
-alerts = Alerts()
+alerts = ASUP_Client()
 #alerts.unzip_attachment("/Users/cmutgi/ASUP/attachments/body.7z")
 alerts.parse_email(sys.argv[1])
 #alerts.get_alerts()

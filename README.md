@@ -7,8 +7,22 @@ The python script will
  3. Post each files content to the hedwig webapp
  
  
-## Pre-requisites for the script
+### Pre-requisites for the script
 Please ensure the following python modules are installed and available on the system running hedwig client
 1. requests
+2. email
 
-7z application needs to be installed and configured. Path has to be set in the config file
+### Pre-requisites for the client machine
+
+1. Install and configure logstash
+2. Update `path` to point to the mail directory to be watched
+3. Update `command` to point to the `alerts.py` (`hedwig.cfg` location has to be updated accordingly)
+4. Start logstash with the file `hedwig-logstash.conf`
+5. 7z application needs to be installed and configured. Path has to be set in the config file
+
+Note: On mac 7z can be install from brew with `brew install p7zip` and 
+it gets installed as a 7z executable under `/usr/loca/bin`. 
+On centos please follow this guide: http://ask.xmodulo.com/install-7zip-linux.html.
+It gets installed as 7za under `/bin/7za`
+
+
