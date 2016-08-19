@@ -6,11 +6,15 @@ import subprocess
 from requests.auth import HTTPBasicAuth
 import sys
 import os
+import shutil
+import json
+from pprint import pprint
+import yaml
 
 class ASUP_Client():
     def __init__(self):
         config = ConfigParser.RawConfigParser()
-        configFilePath = r'hedwig_client/hedwig.cfg'
+        configFilePath = r'hedwig.cfg'
         config.read(configFilePath)
         self.appConf = config
         self.alertName = str(time.time())
@@ -22,7 +26,7 @@ class ASUP_Client():
         #print 'Posting %s to %s' % (self.email_fields, alerts_url)
         respose =  requests.post(alerts_url, json=self.email_fields, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')), headers=header)
         #jr = json.loads(respose.text())
-        #print(respose.json())
+        print(respose.json())
         self.alert_id = respose.json()['id']
         print self.alert_id
 
@@ -43,11 +47,12 @@ class ASUP_Client():
         print 'About to parse %s' % emailFile
         attachment_name = ""
         emailf = open(emailFile, 'rb')
+        # with open(emailFile, 'rb') as data_file:
+        #     data = json.load(data_file)
         parsedEmail = email.message_from_file(emailf)
         if len(parsedEmail) == 0:
             print 'Failed to parse email at %s' % emailFile
             return
-        emailf.close()
         if parsedEmail.is_multipart():
             for payload in parsedEmail.get_payload():
                 ctype = payload.get_content_type()
@@ -68,6 +73,12 @@ class ASUP_Client():
         self.unzip_attachment(attachment_name)
         self.email_fields['alerts'] = str(self.parse_alert_data(self.tempDir))
         self.post_alerts()
+        self.cleanup()
+
+    def cleanup(self):
+        shutil.rmtree(self.tempDir)
+        print 'Cleaned up: '+self.tempDir
+
 
     def parse_email_body(self, email_body):
         email_body_data = {}
@@ -90,21 +101,22 @@ class ASUP_Client():
     def parse_alert_data(self, unzipped_files_dir):
         files_to_parse = []
         files_data = {}
+
         # change unzipped_files_dir to self.tempDir TODO
         for file in os.listdir(unzipped_files_dir):
             #print 'Adding file %s' % file
             if os.path.isfile(unzipped_files_dir+"/"+file):
                 files_to_parse.append(file)
-                fp = open(unzipped_files_dir + "/" + file, 'r')
-                files_data[file] = fp.read()
-                fp.close()
-        print 'Files to parse: ' + str(files_to_parse)
+                if 'AGGR-STATUS-R' in str(file):
+                    fp = open(unzipped_files_dir + "/" + file, 'r')
+                    #files_data[file] = str(fp.read()).replace("\r\n", " \r\n ", -1).replace("\t", " \t ", -1)
+                    files_data[file] = str(fp.read())
+                    #print files_data[file]
+                    fp.close()
+        print 'Files to parsed: ' + str(files_to_parse)
         return files_data
 
 
 alerts = ASUP_Client()
-#alerts.unzip_attachment("/Users/cmutgi/ASUP/attachments/body.7z")
 alerts.parse_email(sys.argv[1])
-#alerts.parse_email('/tmp/email')
-#alerts.get_alerts()
-#alerts.parse_alert_data('/var/tmp/1465490322.99')
+
