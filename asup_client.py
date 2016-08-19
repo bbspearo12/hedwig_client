@@ -56,8 +56,7 @@ class ASUP_Client():
                     #print 'Body >>>>>>>>>' + payload.get_payload()
                     self.email_fields = self.parse_email_body(str(payload.get_payload()))
                     print 'Finished parsing email body'
-
-                elif ctype in ['application/octet-stream']:
+		elif ctype in ['application/octet-stream', 'application/x-7z-compressed']:
                     # This the attachment
                     attachment_name = "/tmp/" + self.alertName + payload.get_filename()
                     open(attachment_name, 'wb').write(payload.get_payload(decode=True))
