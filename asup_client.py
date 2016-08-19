@@ -7,9 +7,6 @@ from requests.auth import HTTPBasicAuth
 import sys
 import os
 import shutil
-import json
-from pprint import pprint
-import yaml
 
 class ASUP_Client():
     def __init__(self):
@@ -47,8 +44,6 @@ class ASUP_Client():
         print 'About to parse %s' % emailFile
         attachment_name = ""
         emailf = open(emailFile, 'rb')
-        # with open(emailFile, 'rb') as data_file:
-        #     data = json.load(data_file)
         parsedEmail = email.message_from_file(emailf)
         if len(parsedEmail) == 0:
             print 'Failed to parse email at %s' % emailFile
@@ -61,7 +56,7 @@ class ASUP_Client():
                     #print 'Body >>>>>>>>>' + payload.get_payload()
                     self.email_fields = self.parse_email_body(str(payload.get_payload()))
                     print 'Finished parsing email body'
-		elif ctype in ['application/octet-stream', 'application/x-7z-compressed']:
+                elif ctype in ['application/octet-stream', 'application/x-7z-compressed']:
                     # This the attachment
                     attachment_name = "/tmp/" + self.alertName + payload.get_filename()
                     open(attachment_name, 'wb').write(payload.get_payload(decode=True))
@@ -107,12 +102,12 @@ class ASUP_Client():
             #print 'Adding file %s' % file
             if os.path.isfile(unzipped_files_dir+"/"+file):
                 files_to_parse.append(file)
-                if 'AGGR-STATUS-R' in str(file):
-                    fp = open(unzipped_files_dir + "/" + file, 'r')
-                    #files_data[file] = str(fp.read()).replace("\r\n", " \r\n ", -1).replace("\t", " \t ", -1)
-                    files_data[file] = str(fp.read())
-                    #print files_data[file]
-                    fp.close()
+                #if 'AGGR-STATUS-R' in str(file):
+                fp = open(unzipped_files_dir + "/" + file, 'r')
+                #files_data[file] = str(fp.read()).replace("\r\n", " \r\n ", -1).replace("\t", " \t ", -1)
+                files_data[file] = str(fp.read())
+                #print files_data[file]
+                fp.close()
         print 'Files to parsed: ' + str(files_to_parse)
         return files_data
 

@@ -22,7 +22,7 @@ Please ensure the following python modules are installed and available on the sy
 
 Note: 
 * On mac 7z can be install from brew with `brew install p7zip` and 
-it gets installed as a 7z executable under `/usr/loca/bin`. 
+it gets installed as a 7z executable under `/usr/local/bin`. 
 * On centos please follow this guide: http://ask.xmodulo.com/install-7zip-linux.html.
 It gets installed as 7za under `/bin/7za`
 * On Ubuntu do `apt-get install p7zip-full`
