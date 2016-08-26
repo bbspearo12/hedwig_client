@@ -23,7 +23,7 @@ class ASUP_Client():
         #print 'Posting %s to %s' % (self.email_fields, alerts_url)
         respose =  requests.post(alerts_url, json=self.email_fields, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')), headers=header)
         #jr = json.loads(respose.text())
-        print(respose.json())
+        #print(respose.json())
         self.alert_id = respose.json()['id']
         print self.alert_id
 
@@ -96,18 +96,33 @@ class ASUP_Client():
     def parse_alert_data(self, unzipped_files_dir):
         files_to_parse = []
         files_data = {}
-
+        file_count = 0
         # change unzipped_files_dir to self.tempDir TODO
         for file in os.listdir(unzipped_files_dir):
             #print 'Adding file %s' % file
             if os.path.isfile(unzipped_files_dir+"/"+file):
+                file_count = file_count + 1
+                if 'txt' not in str(file):
+                    print 'Skipping file: %s' % str(file)
+                    continue
+                # if file_count < 80:
+                #     print 'Skipping file %s with count %d' % (str(file), file_count)
+                #     continue
+                if file_count == 95:
+                    print 'Processed: %d files, stopping' % file_count
+                    break
                 files_to_parse.append(file)
-                #if 'AGGR-STATUS-R' in str(file):
+                #if 'SYSCONFIG-A.txt' in str(file):
                 fp = open(unzipped_files_dir + "/" + file, 'r')
-                #files_data[file] = str(fp.read()).replace("\r\n", " \r\n ", -1).replace("\t", " \t ", -1)
-                files_data[file] = str(fp.read())
+                file_content = str(fp.read())
+                file_content = file_content.replace("\r\n", "<br/>", -1)
+                file_content = file_content.replace("\n", "<br/>", -1)
+                file_content = file_content.replace("\t", "&emsp;&emsp;&emsp;&emsp;", -1)
+                files_data[file] = "<br/>" + file_content + "<br/>"
+                #files_data[file] = str(fp.read())
                 #print files_data[file]
                 fp.close()
+                files_data[file] = files_data[file] + "-------------------------------------------------------------------------<br/>"
         print 'Files to parsed: ' + str(files_to_parse)
         return files_data
 
