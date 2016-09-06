@@ -7,6 +7,7 @@ from requests.auth import HTTPBasicAuth
 import sys
 import os
 import shutil
+from ast import literal_eval
 
 class ASUP_Client():
     def __init__(self):
@@ -16,6 +17,7 @@ class ASUP_Client():
         self.appConf = config
         self.alertName = str(time.time())
         self.tempDir = self.appConf.get('hedwig', 'tmp.alerts.storage.path') + self.alertName + "/"
+        self.required_files = set(literal_eval(self.appConf.get('hedwig', 'required.files')))
 
     def post_alerts(self):
         header = {'Accept': 'application/json', "Content-Type": "application/json"}
@@ -102,31 +104,40 @@ class ASUP_Client():
             #print 'Adding file %s' % file
             if os.path.isfile(unzipped_files_dir+"/"+file):
                 file_count = file_count + 1
-                if 'txt' not in str(file):
+                #if 'txt' not in str(file):
+                if str(file) not in self.required_files:
                     print 'Skipping file: %s' % str(file)
                     continue
                 # if file_count < 80:
                 #     print 'Skipping file %s with count %d' % (str(file), file_count)
                 #     continue
-                if file_count == 95:
-                    print 'Processed: %d files, stopping' % file_count
-                    break
+                # if file_count == 95:
+                #     print 'Processed: %d files, stopping' % file_count
+                #     break
+                # if file_count < 95:
+                #     print 'Skipping: %d files, continuing' % file_count
+                #     continue
                 files_to_parse.append(file)
                 #if 'SYSCONFIG-A.txt' in str(file):
                 fp = open(unzipped_files_dir + "/" + file, 'r')
                 file_content = str(fp.read())
                 file_content = file_content.replace("\r\n", "<br/>", -1)
                 file_content = file_content.replace("\n", "<br/>", -1)
-                file_content = file_content.replace("\t", "&emsp;&emsp;&emsp;&emsp;", -1)
-                files_data[file] = "<br/>" + file_content + "<br/>"
+                #file_content = file_content.replace("\t", "", -1)
+                file_content = file_content.replace("\t", "<tab/>", -1)
+                #file_content = file_content.replace("\t", "&emsp;&emsp;&emsp;&emsp;", -1)
+                files_data[file] = "<br/>" + file_content
                 #files_data[file] = str(fp.read())
                 #print files_data[file]
                 fp.close()
-                files_data[file] = files_data[file] + "-------------------------------------------------------------------------<br/>"
+                files_data[file] = files_data[file] + "<br/>"
+               # files_data[file] = files_data[file] + "-------------------------------------------------------------------------<br/>"
         print 'Files to parsed: ' + str(files_to_parse)
         return files_data
 
 
+
 alerts = ASUP_Client()
 alerts.parse_email(sys.argv[1])
+#alerts.test_required_files()
 
