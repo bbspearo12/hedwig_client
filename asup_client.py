@@ -2,10 +2,10 @@ import requests
 import ConfigParser
 import email
 import time
-import subprocess
 from requests.auth import HTTPBasicAuth
 import sys
-import os
+
+from utils import Utils
 import shutil
 from ast import literal_eval
 
@@ -18,28 +18,34 @@ class ASUP_Client():
         self.alertName = str(time.time())
         self.tempDir = self.appConf.get('hedwig', 'tmp.alerts.storage.path') + self.alertName + "/"
         self.required_files = set(literal_eval(self.appConf.get('hedwig', 'required.files')))
+        self.user = self.appConf.get('hedwig', 'username')
+        self.passwd = self.appConf.get('hedwig', 'password')
 
-    def post_alerts(self):
+    def post_required_files(self, parsed_email):
         header = {'Accept': 'application/json', "Content-Type": "application/json"}
         alerts_url = self.appConf.get('hedwig', 'alerts.api.endpoint')
         #print 'Posting %s to %s' % (self.email_fields, alerts_url)
-        respose =  requests.post(alerts_url, json=self.email_fields, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')), headers=header)
+        respose =  requests.post(alerts_url, json=parsed_email, auth=HTTPBasicAuth(self.user, self.passwd), headers=header)
         #jr = json.loads(respose.text())
         #print(respose.json())
         self.alert_id = respose.json()['id']
-        print self.alert_id
+        print "Posted required files with id: %s" % self.alert_id
+
+    def post_all_files(self, all_files_data):
+        header = {'Accept': 'application/json', "Content-Type": "application/json"}
+        alerts_url = self.appConf.get('hedwig', 'all.alerts.api.endpoint')
+        for file_name, file_data in all_files_data.iteritems():
+            json_data = {}
+            json_data['asup_alert_id'] = self.alert_id
+            json_data['asup_alert_file_name'] = file_name
+            json_data['asup_alert_file_data'] = str(file_data)
+            respose = requests.post(alerts_url, json=json_data, auth=HTTPBasicAuth(self.user, self.passwd), headers=header)
+            print "Posted file: %s with id: %s" % (file_name, respose.json()['id'])
 
     def get_alerts(self):
         alertsEndpoint = self.appConf.get('hedwig', 'alerts.api.endpoint')
         r = requests.get(alertsEndpoint, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')))
         print(r.json())
-
-    def unzip_attachment(self, attachmentPath):
-        # TODO validate attachmentPath exists
-        print("Will unzip: "+ attachmentPath)
-        sevenz = self.appConf.get('hedwig', '7z')
-        decompress = subprocess.check_output([sevenz, 'x', "-o" + self.tempDir, attachmentPath])
-        print("Decompressed: "+attachmentPath+" to location: "+ self.tempDir+", output is: "+decompress)
 
     def parse_email(self, emailFile):
         # TODO validate email_file really exists
@@ -47,6 +53,8 @@ class ASUP_Client():
         attachment_name = ""
         emailf = open(emailFile, 'rb')
         parsedEmail = email.message_from_file(emailf)
+        email_fields = {}
+
         if len(parsedEmail) == 0:
             print 'Failed to parse email at %s' % emailFile
             return
@@ -56,7 +64,7 @@ class ASUP_Client():
                 #print ctype
                 if ctype in ['text/plain']:
                     #print 'Body >>>>>>>>>' + payload.get_payload()
-                    self.email_fields = self.parse_email_body(str(payload.get_payload()))
+                    email_fields = utils.parse_email_body(str(payload.get_payload()))
                     print 'Finished parsing email body'
                 elif ctype in ['application/octet-stream', 'application/x-7z-compressed']:
                     # This the attachment
@@ -67,77 +75,17 @@ class ASUP_Client():
                     print 'Unknown ctype: %s' % ctype
         else:
             print "Not a multi part email not sure how to process this"
-        self.unzip_attachment(attachment_name)
-        self.email_fields['alerts'] = str(self.parse_alert_data(self.tempDir))
-        self.post_alerts()
-        self.cleanup()
-
-    def cleanup(self):
-        shutil.rmtree(self.tempDir)
-        print 'Cleaned up: '+self.tempDir
-
-
-    def parse_email_body(self, email_body):
-        email_body_data = {}
-        if len(email_body) == 0:
-            print 'Email body is empty, nothing to parse'
-            return
-        for token in email_body.split("\n"):
-            field = ""
-            field_value = ""
-            if '=' in token:
-                field = token.split("=")[0].strip('\n')
-                field = field.lower()
-                field_value = token.split("=")[1].strip('\n')
-            else:
-                print 'Unparsable property encountered in email body %s, skipping' % token
-                continue
-            email_body_data[field] = field_value
-        return email_body_data
-
-    def parse_alert_data(self, unzipped_files_dir):
-        files_to_parse = []
-        files_data = {}
-        file_count = 0
-        # change unzipped_files_dir to self.tempDir TODO
-        for file in os.listdir(unzipped_files_dir):
-            #print 'Adding file %s' % file
-            if os.path.isfile(unzipped_files_dir+"/"+file):
-                file_count = file_count + 1
-                #if 'txt' not in str(file):
-                if str(file) not in self.required_files:
-                    print 'Skipping file: %s' % str(file)
-                    continue
-                # if file_count < 80:
-                #     print 'Skipping file %s with count %d' % (str(file), file_count)
-                #     continue
-                # if file_count == 95:
-                #     print 'Processed: %d files, stopping' % file_count
-                #     break
-                # if file_count < 95:
-                #     print 'Skipping: %d files, continuing' % file_count
-                #     continue
-                files_to_parse.append(file)
-                #if 'SYSCONFIG-A.txt' in str(file):
-                fp = open(unzipped_files_dir + "/" + file, 'r')
-                file_content = str(fp.read())
-                file_content = file_content.replace("\r\n", "<br/>", -1)
-                file_content = file_content.replace("\n", "<br/>", -1)
-                #file_content = file_content.replace("\t", "", -1)
-                file_content = file_content.replace("\t", "<tab/>", -1)
-                #file_content = file_content.replace("\t", "&emsp;&emsp;&emsp;&emsp;", -1)
-                files_data[file] = "<br/>" + file_content
-                #files_data[file] = str(fp.read())
-                #print files_data[file]
-                fp.close()
-                files_data[file] = files_data[file] + "<br/>"
-               # files_data[file] = files_data[file] + "-------------------------------------------------------------------------<br/>"
-        print 'Files to parsed: ' + str(files_to_parse)
-        return files_data
-
+        utils.unzip_attachment(attachment_name, self.tempDir)
+        required_files, all_files = Utils.parse_alert_data(self.tempDir, self.required_files)
+        email_fields['alerts'] = str(required_files)
+        utils.cleanup(self.tempDir)
+        return email_fields, all_files
 
 
 alerts = ASUP_Client()
-alerts.parse_email(sys.argv[1])
+utils = Utils()
+required_files_data, all_files_data = alerts.parse_email(sys.argv[1])
+alerts.post_required_files(required_files_data)
+alerts.post_all_files(all_files_data)
 #alerts.test_required_files()
 
