@@ -11,13 +11,30 @@ class Utils():
         config.read(configFilePath)
         self.appConf = config
 
+    # Finds ASUP type elcosed between 2 braces in the subj line, example
+    # HA Group Notification from netapp01 (HA GROUP ERROR: DISK/SHELF COUNT MISMATCH) ERROR
+    @staticmethod
+    def get_asup_type(s, first, last):
+        try:
+            start = s.find(first) + len(first)
+            end = s.rfind(last)
+            return s[start:end]
+        except ValueError:
+            return ""
+
+    # Function returns severity of the asup
+    # Based on the assumption that asup is of the format
+    # HA Group Notification from netapp01 (CHASSIS UNDER TEMPERATURE) WARNING
+    @staticmethod
+    def get_asup_severity(s):
+        return s.rsplit(None, 1)[-1]
+
     @staticmethod
     def parse_alert_data(unzipped_files_dir, required_files):
         files_to_parse = []
         files_data = {}
         required_files_data = {}
         file_count = 0
-        # change unzipped_files_dir to self.tempDir TODO
         for file in os.listdir(unzipped_files_dir):
             #print 'Adding file %s' % file
             if os.path.isfile(unzipped_files_dir+"/"+file):
@@ -25,33 +42,17 @@ class Utils():
                 if 'txt' not in str(file):
                     print 'Skipping file %s' % str(file)
                     continue
-                # if file_count < 80:
-                #     print 'Skipping file %s with count %d' % (str(file), file_count)
-                #     continue
-                # if file_count == 95:
-                #     print 'Processed: %d files, stopping' % file_count
-                #     break
-                # if file_count < 95:
-                #     print 'Skipping: %d files, continuing' % file_count
-                #     continue
                 files_to_parse.append(file)
-                #if 'SYSCONFIG-A.txt' in str(file):
                 fp = open(unzipped_files_dir + "/" + file, 'r')
                 file_content = str(fp.read())
                 file_content = file_content.replace("\r\n", "<br/>", -1)
                 file_content = file_content.replace("\n", "<br/>", -1)
-                #file_content = file_content.replace("\t", "", -1)
                 file_content = file_content.replace("\t", "<tab/>", -1)
-                #file_content = file_content.replace("\t", "&emsp;&emsp;&emsp;&emsp;", -1)
                 files_data[file] = "<br/>" + file_content + "<br/>"
-                #files_data[file] = str(fp.read())
-                #print files_data[file]
                 fp.close()
-                #files_data[file] = files_data[file]
-                if str(file)  in required_files:
+                if str(file) in required_files:
                     print 'Adding to required files: %s' % str(file)
                     required_files_data[file] =  "<br/>" + file_content + "<br/>"
-               # files_data[file] = files_data[file] + "-------------------------------------------------------------------------<br/>"
         print 'Files to parsed: ' + str(files_to_parse)
         return required_files_data, files_data
 

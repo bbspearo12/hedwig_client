@@ -4,6 +4,7 @@ import email
 import time
 from requests.auth import HTTPBasicAuth
 import sys
+from email.header import decode_header
 
 from utils import Utils
 import shutil
@@ -47,6 +48,34 @@ class ASUP_Client():
         r = requests.get(alertsEndpoint, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')))
         print(r.json())
 
+    def get_mail_header(self, header_text, default="ascii"):
+        """Decode header_text if needed"""
+        try:
+            headers = decode_header(header_text)
+        except email.Errors.HeaderParseError:
+            # This already append in email.base64mime.decode()
+            # instead return a sanitized ascii string
+            return header_text.encode('ascii', 'replace').decode('ascii')
+        else:
+            for i, (text, charset) in enumerate(headers):
+                try:
+                    headers[i] = unicode(text, charset or default, errors='replace')
+                except LookupError:
+                    # if the charset is unknown, force default
+                    headers[i] = unicode(text, default, errors='replace')
+            return u"".join(headers)
+
+    # This function assumes subject is of the format
+    # HA Group Notification from netapp06 (MANAGEMENT_LOG) INFO
+    # where the type is in the braces
+    def get_asup_type(self, subj):
+
+        severity = utils.get_asup_severity(subj)
+        print "Severity: %s" % severity
+        return at + " " + severity
+
+
+
     def parse_email(self, emailFile):
         # TODO validate email_file really exists
         print 'About to parse %s' % emailFile
@@ -54,6 +83,8 @@ class ASUP_Client():
         emailf = open(emailFile, 'rb')
         parsedEmail = email.message_from_file(emailf)
         email_fields = {}
+        subj = self.get_mail_header(parsedEmail.get("subject", ""))
+        print "Subject: %s" % subj
 
         if len(parsedEmail) == 0:
             print 'Failed to parse email at %s' % emailFile
@@ -78,6 +109,8 @@ class ASUP_Client():
         utils.unzip_attachment(attachment_name, self.tempDir)
         required_files, all_files = Utils.parse_alert_data(self.tempDir, self.required_files)
         email_fields['alerts'] = str(required_files)
+        email_fields['asup_type'] = utils.get_asup_type(subj, '(', ')')
+        email_fields['asup_severity'] = utils.get_asup_severity(subj)
         utils.cleanup(self.tempDir)
         return email_fields, all_files
 
@@ -87,5 +120,4 @@ utils = Utils()
 required_files_data, all_files_data = alerts.parse_email(sys.argv[1])
 alerts.post_required_files(required_files_data)
 alerts.post_all_files(all_files_data)
-#alerts.test_required_files()
 
