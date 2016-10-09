@@ -108,7 +108,8 @@ class ASUP_Client():
             print "Not a multi part email not sure how to process this"
         utils.unzip_attachment(attachment_name, self.tempDir)
         required_files, all_files = Utils.parse_alert_data(self.tempDir, self.required_files)
-        email_fields['alerts'] = str(required_files)
+        # No need to post data here, everything is not being referenced from individual files
+        #email_fields['alerts'] = str(required_files)
         email_fields['asup_type'] = utils.get_asup_type(subj, '(', ')')
         email_fields['asup_severity'] = utils.get_asup_severity(subj)
         utils.cleanup(self.tempDir)
