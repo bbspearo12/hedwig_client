@@ -7,12 +7,12 @@ banner(){
     echo "1. OpenJDK 1.7"
     echo "2. Logstash"
     echo "3. Python"
-    ﻿﻿echo "4. Python-pip"
+    ﻿﻿echo "4. Python Pip"
     echo "5. Git"
     echo "6. 7z Archive tool"
     echo "7. Hedwig Client"
     echo "Note: The script assumes, postfix server is setup and properly configured"
-    echo "**************************************************************************"
+    echo "**************************************************************************\n"
 
 }
 pre-verifications(){
