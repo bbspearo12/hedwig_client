@@ -7,7 +7,7 @@ import shutil
 class Utils():
     def __init__(self):
         config = ConfigParser.RawConfigParser()
-        configFilePath = r'hedwig.cfg'
+        configFilePath = r'hedwig_client/hedwig.cfg'
         config.read(configFilePath)
         self.appConf = config
 

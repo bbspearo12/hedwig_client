@@ -13,7 +13,7 @@ from ast import literal_eval
 class ASUP_Client():
     def __init__(self):
         config = ConfigParser.RawConfigParser()
-        configFilePath = r'hedwig.cfg'
+        configFilePath = r'hedwig_client/hedwig.cfg'
         config.read(configFilePath)
         self.appConf = config
         self.alertName = str(time.time())
