@@ -203,21 +203,8 @@ if [[ "$_python" ]]; then
     echo "Verifying python version"
     version=$("$_python" --version | awk '{print $2}')
     if [[ "$version" == *2.6* ]]; then
-        echo Python version is $version 2.6, will update
-        yum -y update
-        yum groupinstall "Development tools"
-        yum install zlib-devel bzip2-devel openssl-devel ncurses-devel sqlite-devel readline-devel tk-devel
-        cdir=$(pwd)
-        cd /opt
-        wget --no-check-certificate https://www.python.org/ftp/python/2.7.6/Python-2.7.6.tar.xz -O Python-2.7.6.tar.xz
-        tar xf Python-2.7.6.tar.xz
-        cd Python-2.7.6
-        ./configure --prefix=/usr/local
-        make && make altinstall
-        mv /usr/bin/python /usr/bin/old_python
-        ln -s /usr/local/bin/python2.7 /usr/bin/python
-        python -V
-        cd $cdir
+        echo "Python version is not 2.7, please install and configure it in path and restart"
+        exit -1
     elif [[ "$version" == *2.7* ]]; then
         echo Python version is equal to or more than 2.7.0, continuing.
     fi
