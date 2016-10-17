@@ -13,7 +13,7 @@ banner(){
     echo ""
     echo "************************Welcome to hedwig setup***************************"
     echo "This script will help setup the following components:"
-    echo "1. OpenJDK 1.7"
+    echo "1. OpenJDK 1.8"
     echo "2. Logstash"
     echo "3. Python"
     echo "4. Python-pip"
@@ -36,7 +36,9 @@ pre-verifications(){
         echo "OS: $OS is not Oracle Linux Server"
         exit -1;
     fi
+    # add epel for python
     rpm -Uvh http://mirrors.kernel.org/fedora-epel/6/i386/epel-release-6-8.noarch.rpm
+
 }
 
 print-usage() {
@@ -110,25 +112,36 @@ local vcomp=""
 
 if [[ "$_java" ]]; then
     version=$("$_java" -version 2>&1 | awk -F '"' '/version/ {print $2}')
-    vcomp=$(vercomp $version 1.7)
-    if [[ $vcomp -le 1 ]]; then # 0 is equal, 1 is greater than required
-        echo JDK version is more than 1.7
+    if [[ "$version" == *1.7* ]]; then
+        INSTALL_JDK=1
+        echo "Java 1.7 found, will be removed"
+        yum remove -y java-1.7.0-openjdk
+        yum remove -y java-1.6.0-openjdk
+    elif [[ "$version" == *1.6* ]]; then
+        INSTALL_JDK=1
+        echo "Java 1.6 found, will be removed"
+        yum remove -y java-1.6.0-openjdk
+    elif [[ "$version" == *1.8* ]]; then
+        echo "Java 1.8 or above found, continuing..."
         INSTALL_JDK=0
-    elif [[ $vcomp -eq 2 ]]; then
-        echo "version is less than 1.7, Please upgrade."
-        INSTALL_JDK=2
     fi
 fi
 }
 
 # install jdk if required
 install-jdk(){
+
 if [ "$INSTALL_JDK" -eq "1" ]; then
-    echo "Installing JDK 1.7"
-    yum install java-1.7.0-openjdk-devel
+    echo "Installing JDK 1.8"
+    wget --no-check-certificate --no-cookies --header 'Cookie: oraclelicense=accept-securebackup-cookie' http://download.oracle.com/otn-pub/java/jdk/8u5-b13/jdk-8u5-linux-x64.rpm -O jdk-8u5-linux-x64.rpm
+    rpm -ivh jdk-8u5-linux-x64.rpm
+    alternatives --install /usr/bin/java java /usr/java/jdk1.8.0_05/jre/bin/java 20000
+    alternatives --install /usr/bin/jar jar /usr/java/jdk1.8.0_05/bin/jar 20000
+    alternatives --install /usr/bin/javac javac /usr/java/jdk1.8.0_05/bin/javac 20000
+    alternatives --install /usr/bin/javaws javaws /usr/java/jdk1.8.0_05/jre/bin/javaws 20000
 elif [ "$INSTALL_JDK" -eq "2" ]; then
     echo "Upgrading JDK"
-    yum install java-1.7.0-openjdk-devel
+    yum install -y java-1.8.0-openjdk-devel
     verify-jdk
     if [ "$INSTALL_JDK" -ne "0" ]; then
         echo "Failed to upgrade java"
