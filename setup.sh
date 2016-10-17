@@ -260,8 +260,12 @@ if type -p git; then
 else
     echo "Installing git"
     yum install -y git &> /tmp/git_install_details.txt
-    if grep -qiw error /tmp/git_install_details.txt; then
-        echo "Failed to install git, please fix error and restart setup, details: /tmp/git_install_details.txt"
+#    if grep -qiw error /tmp/git_install_details.txt; then
+#        echo "Failed to install git, please fix error and restart setup, details: /tmp/git_install_details.txt"
+#        exit -1
+#    fi
+    if [ "$?" -ne "0" ]; then
+        echo "Failed to install git. Please fix errors in '/tmp/git_install_details.txt' and restart"
         exit -1
     fi
 fi
