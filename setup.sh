@@ -9,6 +9,7 @@ HEDWIG_SETUP_URL="https://raw.githubusercontent.com/chmutgi/hedwig_client/master
 LOGSTASH_CONF_LOCATION=""
 ASUP_CLIENT_LOGS="/var/log/asup_client.logs"
 HEDWIG_CLIENT_PATH=""
+PYTHON_27_LOCATION=""
 banner(){
     echo ""
     echo "************************Welcome to hedwig setup***************************"
@@ -192,6 +193,46 @@ touch $ASUP_CLIENT_LOGS
 echo "Verified Logstash"
 }
 
+
+install-py-27() {
+    echo "Python version is not 2.7, installing in /usr/local/lib"
+    yum groupinstall -y 'development tools' &> /tmp/development_tools_details.txt
+    if [ "$?" -ne "0" ]; then
+        echo "Failed to install python. Please fix errors in '/tmp/development_tools_details.txt' and restart"
+        exit -1
+    fi
+    yum install -y zlib-devel bzip2-devel openssl-devel xz-libs wget &> /tmp/misctools_install_details.txt
+    if [ "$?" -ne "0" ]; then
+        echo "Failed to install misc tools requried for python. Please fix errors in '/tmp/misctools_install_details.txt' and restart"
+        exit -1
+    fi
+    echo "Successfully installed misc tools for python"
+    pushd $PWD
+    cd /usr/local/lib
+    echo "Downloading source for python 2.7.8"
+    wget http://www.python.org/ftp/python/2.7.8/Python-2.7.8.tar.xz -O Python-2.7.8.tar.xz
+    xz -d Python-2.7.8.tar.xz
+    tar -xvf Python-2.7.8.tar
+    pushd $PWD
+    cd Python-2.7.8
+    ./configure --prefix=/usr/local &> /tmp/py_configure_details.txt
+    if [ "$?" -ne "0" ]; then
+        echo "Failed to configure python. Please fix errors in '/tmp/py_configure_details.txt' and restart"
+        exit -1
+    fi
+    echo "Successfully configured python 2.7.8"
+    make && make altinstall &> /tmp/py_make_install_details.txt
+    if [ "$?" -ne "0" ]; then
+        echo "Failed to configure python. Please fix errors in '/tmp/py_make_install_details.txt' and restart"
+        exit -1
+    fi
+    echo "Successfully completed make install of python 2.7.8"
+    popd
+    popd
+    echo "Python installation complete changed working dir to $PWD"
+}
+
+
 install-python() {
 if type -p python; then
     echo found python executable in PATH
@@ -201,18 +242,18 @@ local version=""
 local vcomp=""
 if [[ "$_python" ]]; then
     echo "Verifying python version"
-    version=$("$_python" --version | awk '{print $2}')
+    version=$("$_python" --version 2>&1 | awk '{print $2}')
     if [[ "$version" == *2.6* ]]; then
-        echo "Python version is not 2.7, please install and configure it in path and restart"
-        exit -1
+        install-py-27
     elif [[ "$version" == *2.7* ]]; then
         echo Python version is equal to or more than 2.7.0, continuing.
     fi
 else
-    echo "Python not installed, or not in PATH. Please fix and re-run the script"
-    exit -1
+    echo "Python not installed, or not in PATH. Installing python 2.7"
+    install-py-27
 fi
-    echo "Python verified"
+    PYTHON_27_LOCATION=$(which python2.7)
+    echo "Python installation verified"
 }
 
 install-pip() {
@@ -221,15 +262,8 @@ if type -p pip; then
     _pip=pip
 else
     echo "Installing python pip"
-    #rpm -ivh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
-#    yum install -y python-pip &> /tmp/pip_install_details.txt
-#    if grep -qi error /tmp/pip_install_details.txt; then
-#        echo "Failed to install pip, please fix error and restart setup"
-#        echo
-#        exit -1
-#    fi
     wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py
-    python get-pip.py
+    python2.7 get-pip.py
     if [ "$?" -ne "0" ]; then
         echo "Failed to install pip. Please manually install pip from 'https://pip.pypa.io/en/stable/installing/' and restar"
         exit -1
@@ -272,10 +306,6 @@ if type -p git; then
 else
     echo "Installing git"
     yum install -y git &> /tmp/git_install_details.txt
-#    if grep -qiw error /tmp/git_install_details.txt; then
-#        echo "Failed to install git, please fix error and restart setup, details: /tmp/git_install_details.txt"
-#        exit -1
-#    fi
     if [ "$?" -ne "0" ]; then
         echo "Failed to install git. Please fix errors in '/tmp/git_install_details.txt' and restart"
         exit -1
@@ -300,6 +330,7 @@ update-logstash-conf() {
     echo "Updating logstash configuration"
     sed -i 's|maildir|'$MAILDIR_PATH'|g' hedwig_client/hedwig-logstash.conf
     sed -i 's|newpath|'$HEDWIG_CLIENT_PATH'|g' hedwig_client/hedwig-logstash.conf
+    sed -i 's|python|'$PYTHON_27_LOCATION'|g' hedwig_client/hedwig-logstash.conf
     #logstash-conf-path="${HEDWIG_CLIENT_PATH}/hedwig-logstash.conf"
     sed -i 's|replaceme_with_logstashconf|'$HEDWIG_CLIENT_PATH/hedwig-logstash.conf'|g' hedwig_client/start_logstash.sh
 }
@@ -311,10 +342,10 @@ run-logstash() {
 banner
 read-args $@
 pre-verifications
+install-python
 verify-jdk
 install-jdk
 install-logstash
-install-python
 install-pip
 install-py-modules
 install-7z
