@@ -14,9 +14,9 @@ banner(){
     echo ""
     echo "************************Welcome to hedwig setup***************************"
     echo "This script will help setup the following components:"
-    echo "1. OpenJDK 1.8"
+    echo "1. Python"
     echo "2. Logstash"
-    echo "3. Python"
+    echo "3. OpenJDK 1.8"
     echo "4. Python-pip"
     echo "5. Git"
     echo "6. 7z Archive tool"
@@ -196,17 +196,20 @@ echo "Verified Logstash"
 
 install-py-27() {
     echo "Python version is not 2.7, installing in /usr/local/lib"
+    echo -n  "Installing development tools..."
     yum groupinstall -y 'development tools' &> /tmp/development_tools_details.txt
     if [ "$?" -ne "0" ]; then
         echo "Failed to install python. Please fix errors in '/tmp/development_tools_details.txt' and restart"
         exit -1
     fi
+    echo "completed"
+    echo -n  "Installing zlib-devel bzip2-devel openssl-devel xz-libs wget for python..."
     yum install -y zlib-devel bzip2-devel openssl-devel xz-libs wget &> /tmp/misctools_install_details.txt
     if [ "$?" -ne "0" ]; then
         echo "Failed to install misc tools requried for python. Please fix errors in '/tmp/misctools_install_details.txt' and restart"
         exit -1
     fi
-    echo "Successfully installed misc tools for python"
+    echo "completed"
     pushd $PWD
     cd /usr/local/lib
     echo "Downloading source for python 2.7.8"
