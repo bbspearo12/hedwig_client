@@ -43,12 +43,12 @@ pre-verifications(){
 }
 
 print-usage() {
-    echo "Usage: curl ${HEDWIG_SETUP_URL} | bash -s -- <maildir> <hedwig-server-ip> <hedwig-admin-password>"
+    echo "Usage: curl ${HEDWIG_SETUP_URL} | bash -s -- <maildir> <hedwig-server-ip> <hedwig-admin-password> <python2.7-path>"
     exit -1;
 }
 
 read-args() {
-    if [ "$#" -ne "3" ]; then
+    if [ "$#" -ne "4" ]; then
         print-usage
     fi
     if [ ! -d "$1" ]; then
@@ -58,6 +58,7 @@ read-args() {
     MAILDIR_PATH=$1;
     HEDWIG_ENDPOINT=$2;
     HEDWIG_ADMIN_PASSWORD=$3;
+    PYTHON_27_LOCATION=$4;
     echo "Configured to read new mail from $MAILDIR_PATH"
     echo "Configured hedwig server ip to : $HEDWIG_ENDPOINT"
 
@@ -236,26 +237,28 @@ install-py-27() {
 }
 
 
-install-python() {
-if type -p python; then
+verify-python() {
+if type -p $PYTHON_27_LOCATION; then
     echo found python executable in PATH
-    _python=python
+    _python=$PYTHON_27_LOCATION
 fi
 local version=""
-local vcomp=""
 if [[ "$_python" ]]; then
     echo "Verifying python version"
     version=$("$_python" --version 2>&1 | awk '{print $2}')
     if [[ "$version" == *2.6* ]]; then
-        install-py-27
+        #install-py-27
+        echo "python in $PYTHON_27_LOCATION is at version 2.6. Please fix and restart setup"
+        exit -1
     elif [[ "$version" == *2.7* ]]; then
         echo Python version is equal to or more than 2.7.0, continuing.
     fi
 else
-    echo "Python not installed, or not in PATH. Installing python 2.7"
-    install-py-27
+    echo "Python not installed, or incorrect PATH was given. Please fix and restart"
+    #install-py-27
+    exit -1
 fi
-    PYTHON_27_LOCATION=$(which python2.7)
+   #PYTHON_27_LOCATION=$(which python2.7)
     echo "Python installation verified"
 }
 
@@ -345,7 +348,7 @@ run-logstash() {
 banner
 read-args $@
 pre-verifications
-install-python
+verify-python
 verify-jdk
 install-jdk
 install-logstash
