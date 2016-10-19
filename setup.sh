@@ -269,7 +269,7 @@ if type -p pip; then
 else
     echo "Installing python pip"
     wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py
-    PYTHON_27_LOCATION get-pip.py
+    $PYTHON_27_LOCATION get-pip.py
     if [ "$?" -ne "0" ]; then
         echo "Failed to install pip. Please manually install pip from 'https://pip.pypa.io/en/stable/installing/' and restar"
         exit -1
