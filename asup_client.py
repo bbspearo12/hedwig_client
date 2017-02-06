@@ -2,6 +2,7 @@ import requests
 import ConfigParser
 import email
 import time
+import os
 from requests.auth import HTTPBasicAuth
 import sys
 from email.header import decode_header
@@ -13,11 +14,12 @@ from ast import literal_eval
 class ASUP_Client():
     def __init__(self):
         config = ConfigParser.RawConfigParser()
-        configFilePath = r'hedwig_client/hedwig.cfg'
+        configFilePath = r'hedwig.cfg'
         config.read(configFilePath)
         self.appConf = config
         self.alertName = str(time.time())
         self.tempDir = self.appConf.get('hedwig', 'tmp.alerts.storage.path') + self.alertName + "/"
+        os.mkdir(self.tempDir)
         self.required_files = set(literal_eval(self.appConf.get('hedwig', 'required.files')))
         self.user = self.appConf.get('hedwig', 'username')
         self.passwd = self.appConf.get('hedwig', 'password')
@@ -28,9 +30,9 @@ class ASUP_Client():
         #print 'Posting %s to %s' % (self.email_fields, alerts_url)
         respose =  requests.post(alerts_url, json=parsed_email, auth=HTTPBasicAuth(self.user, self.passwd), headers=header)
         #jr = json.loads(respose.text())
-        #print(respose.json())
+        print(respose.json())
         self.alert_id = respose.json()['id']
-        print "Posted required files with id: %s" % self.alert_id
+        #print "Posted required files with id: %s" % self.alert_id
 
     def post_all_files(self, all_files_data):
         header = {'Accept': 'application/json', "Content-Type": "application/json"}
@@ -40,8 +42,9 @@ class ASUP_Client():
             json_data['asup_alert_id'] = self.alert_id
             json_data['asup_alert_file_name'] = file_name
             json_data['asup_alert_file_data'] = str(file_data)
+            #print "Posting file %s" % file_name
             respose = requests.post(alerts_url, json=json_data, auth=HTTPBasicAuth(self.user, self.passwd), headers=header)
-            print "Posted file: %s with id: %s" % (file_name, respose.json()['id'])
+            #print "Posted file: %s with id: %s" % (file_name, respose.json()['id'])
 
     def get_alerts(self):
         alertsEndpoint = self.appConf.get('hedwig', 'alerts.api.endpoint')
@@ -79,10 +82,11 @@ class ASUP_Client():
     def parse_email(self, emailFile):
         # TODO validate email_file really exists
         print 'About to parse %s' % emailFile
-        attachment_name = ""
+        attachments = []
         emailf = open(emailFile, 'rb')
         parsedEmail = email.message_from_file(emailf)
         email_fields = {}
+        all_files = {}
         subj = self.get_mail_header(parsedEmail.get("subject", ""))
         print "Subject: %s" % subj
 
@@ -94,25 +98,29 @@ class ASUP_Client():
                 ctype = payload.get_content_type()
                 #print ctype
                 if ctype in ['text/plain']:
-                    #print 'Body >>>>>>>>>' + payload.get_payload()
-                    email_fields = utils.parse_email_body(str(payload.get_payload()))
+                    email_fields, all_files = utils.parse_email_body(str(payload.get_payload()))
                     print 'Finished parsing email body'
-                elif ctype in ['application/octet-stream', 'application/x-7z-compressed']:
-                    # This the attachment
-                    attachment_name = "/tmp/" + self.alertName + payload.get_filename()
-                    open(attachment_name, 'wb').write(payload.get_payload(decode=True))
-                    print 'Finished writing attachment file at: %s' % attachment_name
-                else :
+                elif ctype in ['application/octet-stream', 'application/x-7z-compressed', 'application/x-gzip']:
+                    print 'Processing attachment: %s' % payload.get_filename()
+                    #if payload.get_filename() and ('body.7z' in payload.get_filename() or 'messages.gz' in payload.get_filename()):
+                    attachment_tmp = payload.get_filename()
+                    attachments.append(attachment_tmp)
+                    open(self.tempDir + attachment_tmp, 'wb').write(payload.get_payload(decode=True))
+                    print 'Finished writing attachment file at: %s' % attachment_tmp
+                else:
                     print 'Unknown ctype: %s' % ctype
         else:
             print "Not a multi part email not sure how to process this"
-        utils.unzip_attachment(attachment_name, self.tempDir)
-        required_files, all_files = Utils.parse_alert_data(self.tempDir, self.required_files)
+
+        utils.unzip_attachment(attachments, self.tempDir)
+        required_files, all_files_from_attachments = Utils.parse_attachments(self.tempDir, self.required_files)
         # No need to post data here, everything is not being referenced from individual files
-        #email_fields['alerts'] = str(required_files)
+        email_fields['alerts'] = str(required_files)
         email_fields['asup_type'] = utils.get_asup_type(subj, '(', ')')
         email_fields['asup_severity'] = utils.get_asup_severity(subj)
         utils.cleanup(self.tempDir)
+        all_files.update(all_files_from_attachments)
+        #print "**********All files data %s" % all_files
         return email_fields, all_files
 
 
@@ -121,4 +129,5 @@ utils = Utils()
 required_files_data, all_files_data = alerts.parse_email(sys.argv[1])
 alerts.post_required_files(required_files_data)
 alerts.post_all_files(all_files_data)
+
 
