@@ -13,6 +13,9 @@ class Utils():
         config.read(configFilePath)
         self.appConf = config
         self.email_constants = {}
+        self.files_data = {}
+        self.required_files_data = {}
+        self.depth = 0
         for opt in config.options('constants'):
             self.email_constants[config.get('constants', opt)] = True
 
@@ -34,51 +37,51 @@ class Utils():
     def get_asup_severity(s):
         return s.rsplit(None, 1)[-1]
 
-    @staticmethod
-    def parse_attachments(unzipped_files_dir, required_files):
-        files_data = {}
-        required_files_data = {}
-        depth = 0
-        Utils.parse_alert_data(unzipped_files_dir, required_files, files_data, required_files_data, depth)
-        print "Returning after parsing all attachments %s" % files_data
-        return required_files_data, files_data
+    def parse_attachments(self, unzipped_files_dir, required_files):
+        self.parse_alert_data(unzipped_files_dir, required_files)
+        return self.required_files_data, self.files_data
 
-    @staticmethod
-    def parse_alert_data(unzipped_files_dir, required_files, files_data, required_files_data, depth):
+    def parse_alert_data(self, unzipped_files_dir, required_files):
         files_to_parse = []
         file_count = 0
         print "Analyzing dir %s" % unzipped_files_dir
-        if depth >= Utils.max_depth:
-            print "Reached max depth terminating: %s" % depth
+        if self.depth >= Utils.max_depth:
+            print "Reached max depth terminating: %s" % self.depth
             return
         for file in os.listdir(unzipped_files_dir):
             print "Analyzing file %s" % unzipped_files_dir+"/"+file
             #print 'Adding file %s' % file
             if os.path.isdir(unzipped_files_dir+"/"+file) == True:
                 print '%s is a dir, recursing' % str(unzipped_files_dir +"/"+ file)
-                depth = depth + 1
-                Utils.parse_alert_data(unzipped_files_dir +"/"+ file, required_files, files_data, required_files_data, depth)
-            if os.path.isfile(unzipped_files_dir+"/"+file):
+                self.depth = self.depth + 1
+                self.parse_alert_data(unzipped_files_dir +"/"+ file, required_files)
+            elif os.path.isfile(unzipped_files_dir+"/"+file):
                 file_count = file_count + 1
-                if 'txt' not in str(file):
-                    print 'Skipping file %s' % str(file)
-                    continue
-                files_to_parse.append(file)
-                fp = open(unzipped_files_dir + "/" + file, 'r')
-                file_content = str(fp.read())
-                file_content = file_content.replace("\r\n", "<br/>", -1)
-                file_content = file_content.replace("\n", "<br/>", -1)
-                file_content = file_content.replace("\t", "<tab/>", -1)
-                files_data[file] = "<br/>" + file_content + "<br/>"
-                fp.close()
-                if str(file) in required_files:
-                    print 'Adding to required files: %s' % str(file)
-                    required_files_data[file] =  "<br/>" + file_content + "<br/>"
-            print "File data is %s" % files_data
+                if str(file).lower().endswith("txt") or '.' not in str(file):
+                    files_to_parse.append(file)
+                    fp = open(unzipped_files_dir + "/" + file, 'r')
+                    file_content = str(fp.read())
+                    file_content = file_content.replace("\r\n", "<br/>", -1)
+                    file_content = file_content.replace("\n", "<br/>", -1)
+                    file_content = file_content.replace("\t", "<tab/>", -1)
+                    self.files_data[file] = "<br/>" + file_content + "<br/>"
+                    fp.close()
+                    if str(file) in required_files:
+                        #print 'Adding to required files: %s' % str(file)
+                        self.required_files_data[file] =  "<br/>" + file_content + "<br/>"
+                elif str(file).lower().endswith(".gz"):
+                    print "looks like a bundle, will unzip %s" % file
+                    flist = [file]
+                    self.unzip_file(flist, unzipped_files_dir+'/')
+                    self.depth = self.depth + 1
+                    self.parse_alert_data(unzipped_files_dir + "/" + file.replace(".", "_"), required_files)
+                else:
+                    print "skipped file %s" % file
         #print 'Files to parsed: ' + str(files_to_parse)
+        #print "File data is %s" % self.files_data
         return
 
-    def unzip_attachment(self, attachments, temp_dir):
+    def unzip_file(self, attachments, temp_dir):
         # TODO validate attachmentPath exists
         sevenz = self.appConf.get('hedwig', '7z')
         tar = self.appConf.get('hedwig', 'tar')
@@ -88,10 +91,10 @@ class Utils():
             os.mkdir(decom_dir)
             if ".tar" in attachment:
                 decompress = subprocess.check_output([tar, 'xf', temp_dir + "/" + attachment, '-C', decom_dir])
-                print("Decompressed: " + attachment + " to location: " + decom_dir + ", output is: " + decompress)
+                print("Decompressed: " + attachment + " to location: " + decom_dir)
             else:
                 decompress = subprocess.check_output([sevenz, 'x', '-o' + decom_dir, temp_dir + "/" + attachment])
-                print("Decompressed: " + attachment + " to location: " + decom_dir + ", output is: " + decompress)
+                print("Decompressed: " + attachment + " to location: " + decom_dir )
 
     def parse_email_body(self, email_body):
         email_body_data = {}

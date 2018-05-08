@@ -30,9 +30,14 @@ class ASUP_Client():
         #print 'Posting %s to %s' % (self.email_fields, alerts_url)
         respose =  requests.post(alerts_url, json=parsed_email, auth=HTTPBasicAuth(self.user, self.passwd), headers=header)
         #jr = json.loads(respose.text())
-        print(respose.json())
-        self.alert_id = respose.json()['id']
-        #print "Posted required files with id: %s" % self.alert_id
+        if respose == None:
+            print "Failed to post asups"
+        elif respose.status_code != 201:
+            print "Failed to post asups. response code: %d err: %s" % (respose.status_code, respose.json())
+        else:
+            self.alert_id = respose.json()['id']
+            print "Posted required files with id: %s" % self.alert_id
+        return
 
     def post_all_files(self, all_files_data):
         header = {'Accept': 'application/json', "Content-Type": "application/json"}
@@ -45,11 +50,18 @@ class ASUP_Client():
             #print "Posting file %s" % file_name
             respose = requests.post(alerts_url, json=json_data, auth=HTTPBasicAuth(self.user, self.passwd), headers=header)
             #print "Posted file: %s with id: %s" % (file_name, respose.json()['id'])
+            if respose == None:
+                print "Failed to post files for asup: %s" % json_data['asup_alert_id']
+            elif respose.status_code != 201:
+                print "Failed to post asups. response code: %d err: %s" % (respose.status_code, respose.json())
+            else:
+                #self.alert_id = respose.json()['id']
+                print "Posted all with id: %s" % self.alert_id
 
     def get_alerts(self):
         alertsEndpoint = self.appConf.get('hedwig', 'alerts.api.endpoint')
         r = requests.get(alertsEndpoint, auth=HTTPBasicAuth(self.appConf.get('hedwig', 'username'), self.appConf.get('hedwig', 'password')))
-        print(r.json())
+        #print(r.json())
 
     def get_mail_header(self, header_text, default="ascii"):
         """Decode header_text if needed"""
@@ -80,7 +92,6 @@ class ASUP_Client():
 
 
     def parse_email(self, emailFile):
-        # TODO validate email_file really exists
         print 'About to parse %s' % emailFile
         attachments = []
         emailf = open(emailFile, 'rb')
@@ -112,15 +123,14 @@ class ASUP_Client():
         else:
             print "Not a multi part email not sure how to process this"
 
-        utils.unzip_attachment(attachments, self.tempDir)
-        required_files, all_files_from_attachments = Utils.parse_attachments(self.tempDir, self.required_files)
+        utils.unzip_file(attachments, self.tempDir)
+        required_files, all_files_from_attachments = utils.parse_attachments(self.tempDir, self.required_files)
         # No need to post data here, everything is not being referenced from individual files
         email_fields['alerts'] = str(required_files)
         email_fields['asup_type'] = utils.get_asup_type(subj, '(', ')')
         email_fields['asup_severity'] = utils.get_asup_severity(subj)
-        utils.cleanup(self.tempDir)
+        #utils.cleanup(self.tempDir)
         all_files.update(all_files_from_attachments)
-        #print "**********All files data %s" % all_files
         return email_fields, all_files
 
 
